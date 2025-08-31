@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MediaPipe Finger Recognition Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <style>
+        body { text-align: center; }
+        canvas { position: absolute; left: 0; top: 0; }
+        #output { position: relative; }
+    </style>
+</head>
+<body>
+    <h2>MediaPipe Finger Recognition Demo</h2>
+    <div id="output">
+        <video id="input_video" style="display:none;"></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
+    <div id="finger_status"></div>
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const fingerStatusDiv = document.getElementById('finger_status');
+
+        function isFingerUp(landmarks, tip, pip) {
+            return landmarks[tip].y < landmarks[pip].y;
+        }
+
+        function getFingerStatus(landmarks) {
+            // Thumb: tip(4), ip(3)
+            // Index: tip(8), pip(6)
+            // Middle: tip(12), pip(10)
+            // Ring: tip(16), pip(14)
+            // Pinky: tip(20), pip(18)
+            return {
+                thumb: isFingerUp(landmarks, 4, 3),
+                index: isFingerUp(landmarks, 8, 6),
+                middle: isFingerUp(landmarks, 12, 10),
+                ring: isFingerUp(landmarks, 16, 14),
+                pinky: isFingerUp(landmarks, 20, 18)
+            };
+        }
+
+        function drawLandmarks(landmarks) {
+            for (const landmark of landmarks) {
+                canvasCtx.beginPath();
+                canvasCtx.arc(landmark.x * canvasElement.width, landmark.y * canvasElement.height, 5, 0, 2 * Math.PI);
+                canvasCtx.fillStyle = 'red';
+                canvasCtx.fill();
+            }
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
+
+        hands.onResults(results => {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                drawLandmarks(landmarks);
+
+                const status = getFingerStatus(landmarks);
+                fingerStatusDiv.innerHTML = `
+                    <b>Finger Status:</b><br>
+                    Thumb: ${status.thumb ? 'Up' : 'Down'}<br>
+                    Index: ${status.index ? 'Up' : 'Down'}<br>
+                    Middle: ${status.middle ? 'Up' : 'Down'}<br>
+                    Ring: ${status.ring ? 'Up' : 'Down'}<br>
+                    Pinky: ${status.pinky ? 'Up' : 'Down'}
+                `;
+            } else {
+                fingerStatusDiv.innerHTML = 'No hand detected.';
+            }
+        });
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+    </script>
+</body>
+</html>
