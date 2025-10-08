@@ -29,11 +29,7 @@
         }
 
         function getFingerStatus(landmarks) {
-            // Thumb: tip(4), ip(3)
-            // Index: tip(8), pip(6)
-            // Middle: tip(12), pip(10)
-            // Ring: tip(16), pip(14)
-            // Pinky: tip(20), pip(18)
+            
             return {
                 thumb: isFingerUp(landmarks, 4, 3),
                 index: isFingerUp(landmarks, 8, 6),
